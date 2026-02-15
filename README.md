@@ -95,6 +95,29 @@ Works with DeepSeek, OpenAI, Together, OpenRouter, or any Anthropic-compatible e
 
 Self-annotation always runs first for immediate retrieval. When LLM annotation is enabled, it upgrades entries in the background.
 
+### Per-project control
+
+Swrd runs on all Claude Code sessions by default. You can enable or disable it per project:
+
+```bash
+touch .nodistill    # disable for this project
+touch .distill      # enable for this project (even if global default is off)
+rm .nodistill       # revert to global default
+```
+
+`.nodistill` always takes priority if both files exist.
+
+To flip the global default (off by default, opt-in per project):
+
+```json
+{
+  "enabled": false,
+  "annotator": "self"
+}
+```
+
+Then drop a `.distill` file in projects where you want it.
+
 ## CLI
 
 ```
