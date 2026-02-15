@@ -10,6 +10,8 @@ export const CONFIG_FILE = join(DISTILL_DIR, 'config.json');
 
 // User config (loaded from ~/.distill/config.json)
 export interface DistillConfig {
+  // Global on/off switch (default: true). Override per-project with .distill / .nodistill files.
+  enabled?: boolean;
   // 'self' = rule-based (free, instant), 'haiku' = API-powered (richer but costs money)
   annotator: 'self' | 'haiku';
   // API provider format: 'anthropic' or 'openai' (DeepSeek, OpenAI, Together, etc.)

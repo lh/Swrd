@@ -8,8 +8,12 @@ import { onStop } from './hooks/on-stop.js';
 import { annotatePrompt } from './annotate.js';
 import { openDb, getEntryCount, getPromptIndex } from './db.js';
 import { loadConfig } from './config.js';
+import { isEnabled } from './gate.js';
 
 const cmd = process.argv[2];
+
+/** Hook commands that should respect the per-project gate */
+const GATED_COMMANDS = new Set(['session-start', 'on-prompt', 'on-tool', 'on-stop']);
 
 /**
  * Read JSON from stdin (non-blocking — returns null if stdin is a TTY with no data).
@@ -32,37 +36,39 @@ function respond(obj: object) {
 
 async function main() {
   try {
+    // For hook commands, check if distill is enabled for this project
+    if (GATED_COMMANDS.has(cmd ?? '')) {
+      const raw = readStdin() as Record<string, unknown>;
+      const cwd = raw.cwd as string | undefined;
+
+      if (!isEnabled(cwd)) {
+        respond({});
+        return;
+      }
+
+      // Dispatch to hook handlers with the already-parsed input
+      switch (cmd) {
+        case 'session-start':
+          sessionStart(raw as { session_id: string; source: string });
+          respond({});
+          return;
+        case 'on-prompt': {
+          const result = onPrompt(raw as { session_id: string; prompt: string });
+          respond(result);
+          return;
+        }
+        case 'on-tool':
+          onTool(raw as { session_id: string; tool_name: string; tool_input: Record<string, unknown> });
+          respond({});
+          return;
+        case 'on-stop':
+          onStop(raw as { session_id: string });
+          respond({});
+          return;
+      }
+    }
+
     switch (cmd) {
-      // --- Hook handlers (called by Claude Code) ---
-
-      case 'session-start': {
-        const input = readStdin() as { session_id: string; source: string };
-        sessionStart(input);
-        respond({});
-        break;
-      }
-
-      case 'on-prompt': {
-        const input = readStdin() as { session_id: string; prompt: string };
-        const result = onPrompt(input);
-        respond(result);
-        break;
-      }
-
-      case 'on-tool': {
-        const input = readStdin() as { session_id: string; tool_name: string; tool_input: Record<string, unknown> };
-        onTool(input);
-        // async hook — no response needed, but write empty JSON to be safe
-        respond({});
-        break;
-      }
-
-      case 'on-stop': {
-        const input = readStdin() as { session_id: string };
-        onStop(input);
-        respond({});
-        break;
-      }
 
       // --- Background annotation (spawned by on-stop) ---
 
